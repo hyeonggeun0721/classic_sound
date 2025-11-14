@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "738792829220",
+    "project_id": "classicsound-e318c",
+    "storage_bucket": "classicsound-e318c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:738792829220:android:fa06986a96a04bc2f443b1",
+        "android_client_info": {
+          "package_name": "summer.example.classic_sound"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBEi4zfa_hTflCo4t29cp9BndJ6qaym-YI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
