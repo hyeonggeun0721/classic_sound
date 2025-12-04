@@ -22,25 +22,25 @@ class DownloadListTile extends StatefulWidget {
 }
 
 class _DownloadListTileState extends State<DownloadListTile> {
-  double progress = 0.0;
-  bool isDownloading = false;
-  bool isDownloaded = false; // [추가] 이미 다운로드 되었는지 확인하는 변수
+  double progress = 0.0;      // 다운로드 진행률
+  bool isDownloading = false; // 현재 다운로드 중인지 여부
+  bool isDownloaded = false;  // 파일이 로컬에 존재하는지 여부
   IconData leadingIcon = Icons.music_note;
 
   @override
   void initState() {
     super.initState();
-    // [추가] 위젯이 생성될 때 파일이 있는지 먼저 확인
+    // 위젯이 생성될 때 이미 다운로드된 파일인지 확인
     _checkFileStatus();
   }
 
-  // 파일 경로 가져오기
+  // 앱의 내부 저장소 경로 + 파일명을 반환하는 함수
   Future<String> _getFilePath() async {
     var dir = await getApplicationDocumentsDirectory();
     return '${dir.path}/${widget.music.name}';
   }
 
-  // 파일 존재 여부 확인 함수
+  // 실제 파일 존재 여부를 체크하여 UI 상태를 업데이트
   Future<void> _checkFileStatus() async {
     try {
       var path = await _getFilePath();
@@ -57,9 +57,10 @@ class _DownloadListTileState extends State<DownloadListTile> {
     }
   }
 
-  // 상세 페이지 이동 로직
+  // 리스트 아이템 클릭 시 상세 페이지 이동 로직
   void _goToDetailPage() {
     if (isDownloaded) {
+      // 다운로드가 완료된 파일만 상세 페이지로 이동 가능
       if (mounted) {
         Navigator.of(context).push(MaterialPageRoute(builder: (context) {
           return SoundDetailPage(
@@ -69,6 +70,7 @@ class _DownloadListTileState extends State<DownloadListTile> {
         }));
       }
     } else {
+      // 다운로드 안 된 경우 안내 메시지
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('파일을 먼저 다운로드 해주세요.')),
@@ -82,7 +84,7 @@ class _DownloadListTileState extends State<DownloadListTile> {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: ListTile(
-        onTap: _goToDetailPage, // 리스트를 누르면 상세 페이지 이동 시도
+        onTap: _goToDetailPage,
         leading: Icon(leadingIcon),
         title: Text(
           widget.music.name,
@@ -91,14 +93,15 @@ class _DownloadListTileState extends State<DownloadListTile> {
         ),
         subtitle: Text('${widget.music.composer} / ${widget.music.tag}'),
 
-        // [수정] 3단 상태 변화 (다운로드중 vs 완료됨 vs 다운로드전)
+        // 상태에 따라 다른 아이콘(버튼)을 보여줌
         trailing: _buildTrailingIcon(),
       ),
     );
   }
 
+  // 상태별 아이콘 빌더 함수
   Widget _buildTrailingIcon() {
-    // 1. 다운로드 중일 때: 로딩바 표시
+    // 1. 다운로드 중일 때: 프로그레스 바 표시
     if (isDownloading) {
       return SizedBox(
         width: 24,
@@ -110,12 +113,12 @@ class _DownloadListTileState extends State<DownloadListTile> {
       );
     }
 
-    // 2. 이미 다운로드 완료된 상태일 때: 체크 표시 (클릭 시 아무것도 안 하거나, 삭제 안내)
+    // 2. 이미 다운로드 완료된 상태: 체크 아이콘 표시
     if (isDownloaded) {
       return IconButton(
-        icon: const Icon(Icons.check_circle, color: Colors.green), // 체크 아이콘
+        icon: const Icon(Icons.check_circle, color: Colors.green),
         onPressed: () {
-          // 이미 다운로드 되었으므로 다시 다운로드하지 않음
+          // 이미 받은 파일임을 사용자에게 알림
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('이미 다운로드된 파일입니다. 리스트를 눌러 재생하세요.'),
@@ -126,7 +129,7 @@ class _DownloadListTileState extends State<DownloadListTile> {
       );
     }
 
-    // 3. 다운로드가 안 된 상태일 때: 다운로드 버튼
+    // 3. 다운로드가 안 된 상태: 다운로드 버튼 표시
     return IconButton(
       icon: const Icon(Icons.download_for_offline_outlined),
       onPressed: () async {
@@ -136,12 +139,14 @@ class _DownloadListTileState extends State<DownloadListTile> {
     );
   }
 
+  // Dio 패키지를 이용한 파일 다운로드 및 로컬 DB 저장
   Future<void> _startDownload(String url, String path) async {
     setState(() {
       isDownloading = true;
     });
 
     try {
+      // 파일 다운로드 시작 및 진행률 업데이트
       await Dio().download(
         url,
         path,
@@ -154,11 +159,11 @@ class _DownloadListTileState extends State<DownloadListTile> {
         },
       );
 
-      // DB 저장
+      // 다운로드 완료 후 음악 정보를 로컬 DB(SQFlite)에 저장
       try {
         await MusicDatabase(widget.database).insertMusic(widget.music);
       } catch (e) {
-        // 중복 저장 등 에러 무시
+        // 이미 DB에 있는 경우 등 예외 처리
       }
 
       if (mounted) {
@@ -166,7 +171,7 @@ class _DownloadListTileState extends State<DownloadListTile> {
           const SnackBar(content: Text('다운로드 완료!')),
         );
 
-        // [중요] 다운로드가 끝나면 '완료됨' 상태로 변경 -> 체크 아이콘으로 바뀜
+        // UI 상태를 '완료됨'으로 변경 -> 체크 아이콘으로 바뀜
         setState(() {
           isDownloaded = true;
         });
@@ -179,6 +184,7 @@ class _DownloadListTileState extends State<DownloadListTile> {
         );
       }
     } finally {
+      // 성공하든 실패하든 로딩 상태 해제
       if (mounted) {
         setState(() {
           isDownloading = false;

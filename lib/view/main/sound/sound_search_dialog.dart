@@ -11,7 +11,7 @@ class MusicSearchDialog extends StatefulWidget {
 }
 
 class _MusicSearchDialog extends State<MusicSearchDialog> {
-  String dropdownValue = 'name';
+  String dropdownValue = 'name'; // 기본 검색 조건: 이름
   TextEditingController searchController = TextEditingController();
 
   @override
@@ -26,6 +26,7 @@ class _MusicSearchDialog extends State<MusicSearchDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // 검색할 필드 선택 (이름, 작곡가 등)
           DropdownButton<String>(
             value: dropdownValue,
             onChanged: (newValue) {
@@ -41,6 +42,7 @@ class _MusicSearchDialog extends State<MusicSearchDialog> {
               );
             }).toList(),
           ),
+          // 검색어 입력 필드
           TextField(
             controller: searchController,
             decoration: InputDecoration(hintText: '검색어를 입력하세요.'),
@@ -50,14 +52,15 @@ class _MusicSearchDialog extends State<MusicSearchDialog> {
       actions: [
         TextButton(
           onPressed: () {
-            Navigator.pop(context);
+            Navigator.pop(context); // 취소 시 그냥 닫기
           },
           child: Text('취소'),
         ),
         TextButton(
           onPressed: () {
-            // 검색 기능 구현하기
+            // 입력된 검색어로 Firestore 쿼리 생성
             var result = searchMusicList(searchController.value.text);
+            // 결과를 메인 페이지로 전달하며 닫기
             Navigator.of(context).pop(result);
           },
           child: Text('검색'),
@@ -66,6 +69,7 @@ class _MusicSearchDialog extends State<MusicSearchDialog> {
     );
   }
 
+  // Firestore 검색 쿼리 생성 함수
   Query searchMusicList(String searchKeyword) {
     Query query = FirebaseFirestore.instance
         .collection('files')

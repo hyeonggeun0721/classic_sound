@@ -29,6 +29,7 @@ class _SoundDetailPage extends State<SoundDetailPage> {
     initPlayer();
   }
 
+  // 로컬에 저장된 음악 파일 경로를 찾아 플레이어에 설정
   void initPlayer() async {
     var dir = await getApplicationDocumentsDirectory();
     var path = '${dir.path}/${currentMusic.name}';
@@ -43,6 +44,7 @@ class _SoundDetailPage extends State<SoundDetailPage> {
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
+              // 뒤로가기 버튼 영역
               const SizedBox(height: 10),
               SizedBox(
                 height: 50,
@@ -59,17 +61,19 @@ class _SoundDetailPage extends State<SoundDetailPage> {
               ),
               const SizedBox(height: 20),
 
+              // 앨범 커버 이미지 (원형으로 자르기)
               SizedBox(
-                width: 180,  // [수정] 300에서 200으로 줄임 (적당한 크기)
-                height: 180, // [수정] 높이도 동일하게
+                width: 180,
+                height: 180,
                 child: ClipOval(
                   child: Image.network(
                     currentMusic.imageDownloadUrl,
-                    fit: BoxFit.cover, // 원 안에 꽉 차게
+                    fit: BoxFit.cover, // 이미지가 원 안에 꽉 차도록 설정
                     errorBuilder: (context, obj, err) {
+                      // 이미지 로드 실패 시 대체 아이콘
                       return const Icon(
                         Icons.music_note_outlined,
-                        size: 100, // 에러 아이콘 크기도 조절
+                        size: 100,
                       );
                     },
                   ),
@@ -78,7 +82,7 @@ class _SoundDetailPage extends State<SoundDetailPage> {
 
               const SizedBox(height: 20),
 
-              /// 제목 + 작곡가
+              // 노래 제목 및 작곡가 표시
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -95,22 +99,20 @@ class _SoundDetailPage extends State<SoundDetailPage> {
 
               const SizedBox(height: 20),
 
-              /// 좋아요 / 싫어요 버튼
+              // [좋아요 / 싫어요 버튼] - Firestore 연동
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  /// 좋아요 버튼
+                  // 좋아요 버튼
                   IconButton(
                     onPressed: () async {
                       DocumentReference musicRef =
                       firestore.collection('musics').doc(currentMusic.name);
 
-                      // [수정] update -> set (merge: true)
-                      // 문서가 없으면 생성하고, 있으면 likes를 +1 합니다.
+                      // [중요] set()과 merge: true 옵션을 사용
+                      // 문서가 없으면 새로 생성하고, 있으면 likes 필드만 업데이트
                       await musicRef.set({
-                        'likes': FieldValue.increment(1),
-                        // 필요하다면 다른 정보도 같이 저장 가능
-                        // 'composer': currentMusic.composer,
+                        'likes': FieldValue.increment(1), // 기존 값에서 1 증가
                       }, SetOptions(merge: true));
 
                       if (mounted) {
@@ -132,13 +134,13 @@ class _SoundDetailPage extends State<SoundDetailPage> {
 
                   const SizedBox(width: 30),
 
-                  /// 싫어요 버튼
+                  // 싫어요 버튼
                   IconButton(
                     onPressed: () async {
                       DocumentReference musicRef =
                       firestore.collection('musics').doc(currentMusic.name);
 
-                      // [수정] update -> set (merge: true)
+                      // 좋아요와 동일하게 동작하며 값만 감소시킴
                       await musicRef.set({
                         'likes': FieldValue.increment(-1),
                       }, SetOptions(merge: true));
@@ -162,12 +164,13 @@ class _SoundDetailPage extends State<SoundDetailPage> {
                 ],
               ),
 
-              /// 플레이어 위젯
+              // 재생 컨트롤러 위젯 (재생/일시정지/탐색 등)
               PlayerWidget(
                 player: player,
                 music: currentMusic,
                 database: widget.database,
                 callback: (music) {
+                  // 다음 곡 등으로 변경되었을 때 상태 업데이트
                   setState(() {
                     currentMusic = music as Music;
                   });

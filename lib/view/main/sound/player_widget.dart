@@ -10,7 +10,7 @@ class PlayerWidget extends StatefulWidget {
   final AudioPlayer player;
   final Music music;
   final Database database;
-  final Function(Music) callback;
+  final Function(Music) callback; // 부모 위젯에게 곡 변경을 알리는 콜백
 
   const PlayerWidget({
     required this.player,
@@ -26,10 +26,11 @@ class PlayerWidget extends StatefulWidget {
 
 class _PlayerWidgetState extends State<PlayerWidget> {
   PlayerState? _playerState;
-  Duration? _duration;
-  Duration? _position;
+  Duration? _duration;   // 전체 곡 길이
+  Duration? _position;   // 현재 재생 위치
   late Music _currentMusic;
 
+  // 비동기 이벤트(재생 시간 변경 등)를 감지하는 구독 변수들
   StreamSubscription? _durationSubscription;
   StreamSubscription? _positionSubscription;
   StreamSubscription? _playerCompleteSubscription;
@@ -37,29 +38,23 @@ class _PlayerWidgetState extends State<PlayerWidget> {
 
   bool get _isPlaying => _playerState == PlayerState.playing;
 
-  String get _durationText =>
-      _duration
-          ?.toString()
-          .split('.')
-          .first ?? '';
-
-  String get _positionText =>
-      _position
-          ?.toString()
-          .split('.')
-          .first ?? '';
+  // 시간을 00:00 형식으로 변환하는 Getter
+  String get _durationText => _duration?.toString().split('.').first ?? '';
+  String get _positionText => _position?.toString().split('.').first ?? '';
 
   AudioPlayer get _player => widget.player;
 
-  bool _repeatCheck = false;
-  bool _shuffleCheck = false;
+  bool _repeatCheck = false;  // 반복 재생 여부
+  bool _shuffleCheck = false; // 셔플 재생 여부
 
   @override
   void initState() {
     super.initState();
     _currentMusic = widget.music;
     _playerState = _player.state;
-    _initStreams();
+    _initStreams(); // 이벤트 리스너 등록
+
+    // 초기 시간 정보 가져오기
     _player.getDuration().then((value) {
       if (mounted) setState(() => _duration = value);
     });
@@ -70,6 +65,7 @@ class _PlayerWidgetState extends State<PlayerWidget> {
 
   @override
   void dispose() {
+    // 위젯이 종료될 때 스트림 구독을 해제해야 메모리 누수가 발생하지 않음
     _durationSubscription?.cancel();
     _positionSubscription?.cancel();
     _playerCompleteSubscription?.cancel();
@@ -86,15 +82,15 @@ class _PlayerWidgetState extends State<PlayerWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme
-        .of(context)
-        .primaryColor;
+    final color = Theme.of(context).primaryColor;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // 재생 구간 조절 슬라이더
         Slider(
           onChanged: (v) {
+            // 슬라이더 이동 시 해당 위치로 seek
             final position = v * (_duration?.inMilliseconds ?? 0);
             _player.seek(Duration(milliseconds: position.round()));
           },
@@ -106,6 +102,7 @@ class _PlayerWidgetState extends State<PlayerWidget> {
               ? _position!.inMilliseconds / _duration!.inMilliseconds
               : 0.0,
         ),
+        // 시간 표시 (현재 / 전체)
         Text(
           _position != null
               ? '$_positionText / $_durationText'
@@ -115,6 +112,7 @@ class _PlayerWidgetState extends State<PlayerWidget> {
           style: const TextStyle(fontSize: 16.0),
         ),
 
+        // 재생 컨트롤 버튼들 (이전, 재생/일시정지, 다음)
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -125,7 +123,6 @@ class _PlayerWidgetState extends State<PlayerWidget> {
               iconSize: 44,
               color: color,
             ),
-
             IconButton(
               key: const Key('play_pause_button'),
               onPressed: _isPlaying ? _pause : _play,
@@ -133,7 +130,6 @@ class _PlayerWidgetState extends State<PlayerWidget> {
               icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
               color: color,
             ),
-
             IconButton(
               key: const Key('next_button'),
               onPressed: _next,
@@ -144,6 +140,7 @@ class _PlayerWidgetState extends State<PlayerWidget> {
           ],
         ),
 
+        // 기능 버튼들 (반복, 셔플)
         Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -168,6 +165,7 @@ class _PlayerWidgetState extends State<PlayerWidget> {
     );
   }
 
+  // 오디오 플레이어의 상태 변화를 감지하는 리스너 등록
   void _initStreams() {
     _durationSubscription = _player.onDurationChanged.listen((duration) {
       if (mounted) setState(() => _duration = duration);
@@ -177,6 +175,7 @@ class _PlayerWidgetState extends State<PlayerWidget> {
           (p) => {if (mounted) setState(() => _position = p)},
     );
 
+    // 곡이 끝났을 때의 처리
     _playerCompleteSubscription = _player.onPlayerComplete.listen((event) {
       _onCompletion();
     });
@@ -186,6 +185,7 @@ class _PlayerWidgetState extends State<PlayerWidget> {
         });
   }
 
+  // 재생 완료 시 호출: 반복 재생이면 다시 재생, 아니면 다음 곡
   Future<void> _onCompletion() async {
     if (mounted) {
       setState(() {
@@ -199,6 +199,7 @@ class _PlayerWidgetState extends State<PlayerWidget> {
     }
   }
 
+  // 반복 재생 로직
   Future<void> _repeatPlay() async {
     final dir = await getApplicationDocumentsDirectory();
     if (mounted) {
@@ -211,20 +212,19 @@ class _PlayerWidgetState extends State<PlayerWidget> {
     await _player.resume();
   }
 
-  /// 재생
+  /// 재생 실행
   Future<void> _play() async {
     final player = _player;
 
-    // [수정 핵심] ${_currentMusic} -> ${_currentMusic.name} 으로 변경!
-    // 이제 정확한 파일 이름(예: song.mp3)을 가져옵니다.
+    // [중요] 파일 경로 생성 시 객체가 아닌 파일명(.name)을 사용하도록 수정
     final currentMusicPath =
         '${(await getApplicationDocumentsDirectory()).path}/${_currentMusic.name}';
 
     try {
       if (player.state == PlayerState.paused) {
-        await player.resume();
+        await player.resume(); // 일시정지 상태면 재개
       } else {
-        // 경로가 정확해졌으니 재생이 잘 될 겁니다.
+        // 처음 재생 시 경로와 위치를 지정하여 재생
         await player.play(DeviceFileSource(currentMusicPath), position: _position);
       }
       if (mounted) {
@@ -241,7 +241,7 @@ class _PlayerWidgetState extends State<PlayerWidget> {
     }
   }
 
-  /// 일시정지
+  /// 일시정지 실행
   Future<void> _pause() async {
     try {
       await _player.pause();
@@ -265,6 +265,7 @@ class _PlayerWidgetState extends State<PlayerWidget> {
     if (mounted) setState(() => _shuffleCheck = !_shuffleCheck);
   }
 
+  // 이전 곡 재생
   Future<void> _prev() async {
     if (!mounted) return;
 
@@ -283,17 +284,21 @@ class _PlayerWidgetState extends State<PlayerWidget> {
     }
   }
 
+  // 다음 곡 재생
   Future<void> _next() async {
     if (!mounted) return;
 
+    // 로컬 DB에서 전체 리스트를 가져와서 재생 목록 생성
     final List<Map<String, dynamic>> musics = await MusicDatabase(widget.database).getMusic();
     List<Map<String, dynamic>> playlist = List.from(musics);
 
+    // 셔플 모드일 경우 리스트 섞기
     if (_shuffleCheck) {
       playlist.shuffle();
       int currentShuffledIndex = playlist.indexWhere(
               (m) => m['name'] == _currentMusic.name
       );
+      // 다음 곡 로직 처리 (섞인 리스트 기준)
       if (currentShuffledIndex != -1 && currentShuffledIndex + 1< playlist.length) {
         await _playMusic(playlist[currentShuffledIndex + 1]);
       } else if (playlist.isNotEmpty && playlist.first['name'] != _currentMusic.name) {
@@ -307,6 +312,7 @@ class _PlayerWidgetState extends State<PlayerWidget> {
       return;
     }
 
+    // 일반 순차 재생
     int currentIndex = musics.indexWhere(
             (m) => m['name'] == _currentMusic.name
     );
@@ -319,10 +325,12 @@ class _PlayerWidgetState extends State<PlayerWidget> {
     }
   }
 
+  // 실제 음악 변경 및 재생 실행 함수
   Future<void> _playMusic(Map<String, dynamic> musicData) async {
     if (!mounted) return;
 
     final dir = await getApplicationDocumentsDirectory();
+    // 맵 데이터를 Music 객체로 변환
     _currentMusic = Music(
       musicData['name'],
       musicData['composer'],
@@ -338,6 +346,7 @@ class _PlayerWidgetState extends State<PlayerWidget> {
     try {
       await _player.play(DeviceFileSource(path));
       if (mounted) {
+        // 부모 위젯(상세 페이지)의 UI도 업데이트
         widget.callback(_currentMusic);
         setState(() {
           _position = Duration.zero;
