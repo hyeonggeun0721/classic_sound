@@ -105,24 +105,32 @@ class _SoundDetailPage extends State<SoundDetailPage> {
                       DocumentReference musicRef =
                       firestore.collection('musics').doc(currentMusic.name);
 
-                      await musicRef.update({
+                      // [수정] update -> set (merge: true)
+                      // 문서가 없으면 생성하고, 있으면 likes를 +1 합니다.
+                      await musicRef.set({
                         'likes': FieldValue.increment(1),
-                      });
+                        // 필요하다면 다른 정보도 같이 저장 가능
+                        // 'composer': currentMusic.composer,
+                      }, SetOptions(merge: true));
 
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('좋아요 클릭했어요!'),
-                        ),
-                      );
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('좋아요 클릭했어요!'),
+                            duration: Duration(milliseconds: 500),
+                          ),
+                        );
+                      }
                     },
                     icon: const Icon(Icons.thumb_up),
-                    padding: const EdgeInsets.all(5),
+                    padding: const EdgeInsets.all(12),
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.amberAccent,
+                      iconSize: 28,
                     ),
                   ),
 
-                  const SizedBox(width: 20),
+                  const SizedBox(width: 30),
 
                   /// 싫어요 버튼
                   IconButton(
@@ -130,20 +138,25 @@ class _SoundDetailPage extends State<SoundDetailPage> {
                       DocumentReference musicRef =
                       firestore.collection('musics').doc(currentMusic.name);
 
-                      await musicRef.update({
+                      // [수정] update -> set (merge: true)
+                      await musicRef.set({
                         'likes': FieldValue.increment(-1),
-                      });
+                      }, SetOptions(merge: true));
 
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('싫어요 클릭했어요!'),
-                        ),
-                      );
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('싫어요 클릭했어요!'),
+                            duration: Duration(milliseconds: 500),
+                          ),
+                        );
+                      }
                     },
                     icon: const Icon(Icons.thumb_down),
-                    padding: const EdgeInsets.all(5),
+                    padding: const EdgeInsets.all(12),
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.amberAccent,
+                      iconSize: 28,
                     ),
                   ),
                 ],

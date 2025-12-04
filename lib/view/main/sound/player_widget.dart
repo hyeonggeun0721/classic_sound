@@ -214,13 +214,17 @@ class _PlayerWidgetState extends State<PlayerWidget> {
   /// 재생
   Future<void> _play() async {
     final player = _player;
+
+    // [수정 핵심] ${_currentMusic} -> ${_currentMusic.name} 으로 변경!
+    // 이제 정확한 파일 이름(예: song.mp3)을 가져옵니다.
     final currentMusicPath =
-    (await getApplicationDocumentsDirectory()).path + '/${_currentMusic}';
+        '${(await getApplicationDocumentsDirectory()).path}/${_currentMusic.name}';
 
     try {
       if (player.state == PlayerState.paused) {
         await player.resume();
       } else {
+        // 경로가 정확해졌으니 재생이 잘 될 겁니다.
         await player.play(DeviceFileSource(currentMusicPath), position: _position);
       }
       if (mounted) {
