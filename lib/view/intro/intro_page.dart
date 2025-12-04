@@ -1,12 +1,19 @@
 import 'dart:async';
 import 'package:classic_sound/data/constant.dart';
-import 'package:classic_sound/admin/upload_page.dart';
+import 'package:classic_sound/view/main/main_page.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../auth/auth_page.dart';
+import 'package:sqflite/sqflite.dart';
+import '../user/user_page.dart';
 
 
 class IntroPage extends StatefulWidget {
-  const IntroPage({super.key});
+  final Database database;
+  const IntroPage({super.key, required this.database});
+
 
   @override
   State<StatefulWidget> createState() {
@@ -19,8 +26,25 @@ class _IntroPageState extends State<IntroPage> {
   late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
   bool _isDialogOpen = false; // 다이얼로그 표시 여부
   bool _isConnected = false; // 인터넷 연결 상태
-  bool _navigated = false; // 이미 이동 했는지 여부
 
+  Future<bool> _loginCheck() async {
+    final SharedPreferences preferences =
+    await SharedPreferences.getInstance();
+    String? id = preferences.getString("id");
+    String? pw = preferences.getString("pw");
+    if (id != null && pw != null){
+      final FirebaseAuth auth = FirebaseAuth.instance;
+      try {
+        await auth.signInWithEmailAndPassword(
+            email: id, password: pw);
+        return true;
+      } on FirebaseAuthException catch (e) {
+        return false;
+      }
+    } else {
+      return false;
+    }
+  }
 
   @override
   void initState() {
@@ -38,46 +62,47 @@ class _IntroPageState extends State<IntroPage> {
   }
 
   void _updateConnectionStatus(List<ConnectivityResult> result) {
-    // 1. 현재 연결 상태를 'true' 또는 'false'로 명확하게 확인
-    bool isNowConnected = result.any((element) =>
-    element == ConnectivityResult.mobile || element == ConnectivityResult.wifi);
 
-    // 2. 상태(State)를 한 번만 업데이트
-    setState(() {
-      _isConnected = isNowConnected;
-    });
-
-    // 3. 상태에 따라 로직 수행
+    for (var element in result) {
+      if (element == ConnectivityResult.mobile ||
+          element == ConnectivityResult.wifi) {
+        setState(() {
+          _isConnected = true;
+        });
+      }
+    }
     if (_isConnected) {
-      // 인터넷이 연결됨
       if (_isDialogOpen) {
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(); // 다이얼로그 닫기
         _isDialogOpen = false;
       }
-      // 아직 이동한 적이 없다면 홈으로 이동
-      if (!_navigated) {
-        _navigateToHome();
-      }
-    } else {
-      // 인터넷이 연결되지 않음
-      _showOfflineDialog();
-    }
-  }
 
-  // ★★★ 5. 홈으로 이동하는 함수 (새로 추가)
-  void _navigateToHome() {
-    // 2초간 로고/이름을 보여준 뒤 이동
-    Timer(const Duration(seconds: 2), () {
-      if (mounted) { // 2초 후에도 화면이 살아있는지 확인
-        setState(() {
-          _navigated = true; // 이동 완료 플래그 설정
-        });
-        Navigator.pushReplacement( // IntroPage를 Home으로 교체
-          context,
-          MaterialPageRoute(builder: (context) => const UploadPage()), // 실제 홈 페이지 위젯
-        );
-      }
-    });
+      _loginCheck().then((value){
+        if(value == true) {
+          Timer(const Duration(seconds: 2), () {
+            if (mounted) { // mounted check 추가
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => MainPage(database: widget.database,)),
+
+              );
+            }
+          });
+        } else {
+          Timer(const Duration(seconds: 2), () {
+            if (mounted) { // mounted check 추가
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => AuthPage(database: widget.database,)),
+
+              );
+            }
+          });
+        }
+      });
+    } else {
+      _showOfflineDialog(); // 인터넷 연결 안되었을 때 다이얼로그 표시
+    }
   }
 
   void _showOfflineDialog() {
@@ -94,7 +119,11 @@ class _IntroPageState extends State<IntroPage> {
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.of(context).pop();
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => UserPage(database: widget.database)
+                    ), );
                   _isDialogOpen = false;
                 },
                 child: const Text('오프라인으로 사용'),

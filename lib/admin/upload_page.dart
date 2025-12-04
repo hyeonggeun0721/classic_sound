@@ -4,7 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 
-const List<String> list = <String>['piano', 'voice', 'violin'];
+const List<String> list = <String>['piano', 'voice', 'bgm', 'guitar'];
 
 class UploadPage extends StatefulWidget {
   const UploadPage({super.key});
@@ -64,54 +64,52 @@ class _UploadPageState extends State<UploadPage> {
     }
   }
 
+  // Firebase Storage에 파일을 업로드하는 메서드
   Future<void> _uploadFile() async {
+    // 파일이 선택되었다면
     if (_filePath != null) {
+      // 참조 생성
+      Reference reference = _storage.ref().child('files/$_fileName');
+
+      // 파일 업로드 (파일의 바이트를 사용)
+      TaskSnapshot uploadTask =
+      await reference.putData(_pickedFile!.files.first.bytes!);
+
       setState(() {
         _isUploading = true;
       });
 
-      // ★★★ 1. try-catch로 감싸기 ★★★
-      try {
-        Reference reference = _storage.ref().child('files/$_fileName');
+      // 다운로드 URL 얻기
+      String downloadUrl = await uploadTask.ref.getDownloadURL();
+      CollectionReference _filesRef = _firestore.collection('files');
+      String imageDownloadUrl = '';
+      if(_imageFilePath != null) {
+        Reference reference = _storage.ref().child('files/$_imageFileName');
+
+        // 파일 업로드 (파일의 바이트를 사용)
         TaskSnapshot uploadTask =
-        await reference.putData(_pickedFile!.files.first.bytes!);
-        String downloadUrl = await uploadTask.ref.getDownloadURL();
+        await reference.putData(_imagePickedFile!.files.first.bytes!);
 
-        CollectionReference _filesRef = _firestore.collection('classicssound');
-        String imageDownloadUrl = '';
-
-        if (_imageFilePath != null) {
-          Reference imageReference = _storage.ref().child('images/$_imageFileName');
-          TaskSnapshot imageUploadTask =
-          await imageReference.putData(_imagePickedFile!.files.first.bytes!);
-          imageDownloadUrl = await imageUploadTask.ref.getDownloadURL();
-        }
-
-        Music music = Music(
-            _fileName!,
-            _composerController.value.text,
-            _tagController.value.text,
-            _dropdownValue,
-            _pickedFile!.files.single.size,
-            'audio/${_pickedFile!.files.single.extension}',
-            downloadUrl,
-            imageDownloadUrl);
-
-        // ★★★ 2. 여기서 에러가 날 확률이 높음 ★★★
-        await _filesRef.add(music.toMap());
-
-        setState(() {
-          _downloadUrl = downloadUrl;
-          _isUploading = false;
-        });
-
-      } catch (e) {
-        // ★★★ 3. 에러 발생 시 콘솔에 출력 ★★★
-        print('❌❌❌ 데이터베이스 저장 실패: $e ❌❌❌');
-        setState(() {
-          _isUploading = false; // 에러가 나도 로딩은 멈춤
-        });
+        // 다운로드 URL 얻기
+        imageDownloadUrl = await uploadTask.ref.getDownloadURL();
       }
+
+      // URL 저장
+      Music music = Music(
+          _fileName!,
+          _composerController.value.text,
+          _tagController.value.text,
+          _dropdownValue,
+          _pickedFile!.files.single.size,
+          'audio/${_pickedFile!.files.single.extension}',
+          downloadUrl , imageDownloadUrl);
+
+      await _filesRef.add(music.toMap());
+
+      setState(() {
+        _downloadUrl = downloadUrl;
+        _isUploading = false;
+      });
     }
   }
 
